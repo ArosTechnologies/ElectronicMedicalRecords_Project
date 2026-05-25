@@ -9,7 +9,6 @@ from core.mixins import AssociatedDoctorRequiredMixin
 from patientsDashboard.models import Patient
 from associateDoctorDashboard.models import AssociateDoctor
 from .forms import AssociateDoctorSignupForm
-from core.email_service import send_verification_email
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required
 
@@ -53,22 +52,17 @@ def signup(request):
     
     On POST:
       - Validates the signup form (AssociateDoctorSignupForm).
-      - Creates a deactivated user account (`is_active=False`).
-      - Provisions the AssociateDoctor profile.
-      - Dispatches an email address verification link via the core.email_service.
+      - Delegates to AssociateDoctorService to provision accounts and send emails.
       
     On GET:
       - Renders the empty signup form.
     """
+    from .services import AssociateDoctorService
+
     if request.method == 'POST':
         form = AssociateDoctorSignupForm(request.POST)
         if form.is_valid():
-            doctor = form.save()
-            # Deactivate user until email is verified
-            doctor.user.is_active = False
-            doctor.user.save()
-            # Send verification email to confirm address ownership
-            send_verification_email(doctor.user, request)
+            AssociateDoctorService.register_doctor(form.cleaned_data, request)
             return render(request, 'core/emails/verification_pending.html')
     else:
         form = AssociateDoctorSignupForm()

@@ -3,28 +3,7 @@
 
 {% block content %}
 <div class="user-profile-page">
-    <!-- Navbar is in base.html -->
-
     <div class="profile-content">
-
-        <style>
-            .profile-pic-container {
-                position: relative;
-                overflow: hidden;
-                border-radius: 50%;
-                width: 270px;
-                height: 270px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            }
-
-            .profile-pic-img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                border-radius: 50%;
-            }
-        </style>
-
         <div class="profile-header">
             <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-right: 2rem;">
                 <div class="profile-pic-container">
@@ -95,20 +74,5 @@
     </div>
 </div>
 
-<style>
-    /* Inline overrides if needed, but styles should be in style.css now */
-    /* Ensure the back button SVG behaves like the img in CSS */
-    .profile-back-button svg {
-        transition: opacity 0.2s ease;
-        cursor: pointer;
-    }
-
-    .profile-back-button:hover svg {
-        opacity: 1;
-        stroke: black;
-    }
-</style>
-
-<!-- Bottom of file modal injection -->
 {% include 'core/components/profile_upload_modal.html' %}
 {% endblock %}

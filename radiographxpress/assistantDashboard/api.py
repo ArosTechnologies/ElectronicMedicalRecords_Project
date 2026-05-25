@@ -90,9 +90,7 @@ def create_patient(request):
         JsonResponse: Success flag along with the new patient's serialized data,
         or a list of validation errors.
     """
-    import secrets
-    import string
-    from django.contrib.auth.models import User, Group
+    from .services import AssistantService
 
     first_name = request.POST.get('first_name', '').strip()
     last_name = request.POST.get('last_name', '').strip()
@@ -114,50 +112,20 @@ def create_patient(request):
     if errors:
         return JsonResponse({'success': False, 'errors': errors}, status=400)
 
-    # Check for duplicate email across the system
-    if User.objects.filter(email=email).exists():
+    success, result = AssistantService.create_patient_service(
+        first_name, last_name, email, phone, gender, address, request
+    )
+    
+    if not success:
         return JsonResponse({
             'success': False,
-            'errors': ['Ya existe un usuario con este correo electrónico.']
+            'errors': result
         }, status=400)
-
-    # Generate an unguessable placeholder password
-    random_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-
-    # Provision base user identity
-    user = User.objects.create_user(
-        username=email,
-        email=email,
-        password=random_password,
-        first_name=first_name,
-        last_name=last_name,
-    )
-    user.is_active = False # Account locked until email verification
-    user.save()
-
-    # Assign Django security role
-    group, _ = Group.objects.get_or_create(name='Patients')
-    user.groups.add(group)
-
-    # Provision Patient profile data
-    patient = Patient.objects.create(
-        user=user,
-        address=address,
-        phone=phone,
-        gender=gender,
-    )
-
-    # Dispatch welcome & verification email
-    from core.email_service import send_verification_email
-    try:
-        send_verification_email(user, request)
-    except Exception:
-        pass  # We catch email failures silently to not halt the UI response
 
     return JsonResponse({
         'success': True,
         'patient': {
-            'id': patient.pk,
+            'id': result.pk,
             'first_name': first_name,
             'last_name': last_name,
             'email': email,
@@ -190,55 +158,15 @@ def verify_doctor(request):
         JsonResponse: Success flag and message. Handles 400 for bad actions 
         and 404 for invalid doctor IDs.
     """
-    from associateDoctorDashboard.models import AssociateDoctor
-    from core.notifications import notify_doctor_approved, notify_doctor_denied
-    from core.email_service import send_doctor_approved_email, send_doctor_denied_email
+    from .services import AssistantService
 
     doctor_id = request.POST.get('doctor_id')
     action = request.POST.get('action')
 
-    # Validate action intent
-    if action not in ['approve', 'deny']:
-        return JsonResponse({'success': False, 'error': 'Acción inválida.'}, status=400)
-
-    # Fetch targeted entity safely
-    try:
-        doctor = AssociateDoctor.objects.get(pk=doctor_id)
-        user = doctor.user
-    except (AssociateDoctor.DoesNotExist, ValueError, TypeError):
-        return JsonResponse({'success': False, 'error': 'Doctor no encontrado.'}, status=404)
-
-    if action == 'approve':
-        doctor.is_verified = True
-        doctor.save()
-
-        user.is_active = True
-        user.save()
-
-        # Alert the ecosystem asynchronously
-        notify_doctor_approved(doctor)
-        try:
-            send_doctor_approved_email(user)
-        except Exception as e:
-            pass # Fail gracefully 
-
-        return JsonResponse({'success': True, 'message': 'Doctor aprobado exitosamente.'})
-
-    elif action == 'deny':
-        # Store necessary data in memory before deletion to fuel the notification engines
-        doctor_pk = doctor.pk
-        doctor_email = user.email
-        doctor_name = f"{user.first_name} {user.last_name}"
-
-        # Hard destruction of credentials
-        doctor.delete()
-        user.delete()
-
-        # Alert the ecosystem asynchronously
-        notify_doctor_denied(doctor_pk)
-        try:
-            send_doctor_denied_email(doctor_email, doctor_name)
-        except Exception as e:
-            pass
-
-        return JsonResponse({'success': True, 'message': 'Doctor rechazado y eliminado exitosamente.'})
+    success, message = AssistantService.verify_doctor_service(doctor_id, action)
+    if not success:
+        if action not in ['approve', 'deny']:
+            return JsonResponse({'success': False, 'error': message}, status=400)
+        return JsonResponse({'success': False, 'error': message}, status=404)
+        
+    return JsonResponse({'success': True, 'message': message})
