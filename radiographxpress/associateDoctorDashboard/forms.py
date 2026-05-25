@@ -54,32 +54,4 @@ class AssociateDoctorSignupForm(forms.ModelForm):
             self.add_error('password_confirm', "Las contraseñas no coinciden")
         return cleaned_data
 
-    def save(self, commit=True):
-        """
-        Overrides default save to handle the dual-model creation logic.
-        1. Creates the base auth.User object with the validated credentials.
-        2. Assigns the newly created User to the AssociateDoctor profile.
-        3. Persists the profile to the database.
-        
-        Args:
-            commit (bool): If True, both the User and Profile are saved to DB.
-        
-        Returns:
-            AssociateDoctor: The newly created profile instance.
-        """
-        # Create base user instance
-        user = User.objects.create_user(
-            username=self.cleaned_data['email'], 
-            email=self.cleaned_data['email'],
-            password=self.cleaned_data['password'],
-            first_name=self.cleaned_data['first_name'],
-            last_name=self.cleaned_data['last_name']
-        )
-        
-        # Instantiate profile without saving yet
-        doctor = super(AssociateDoctorSignupForm, self).save(commit=False)
-        doctor.user = user
-        
-        if commit:
-            doctor.save()
-        return doctor
+
